@@ -196,4 +196,5 @@ def app():
     st.info(icon=f":material/counter_{st.session_state['moves_left']}:", body=f"**:orange[Moves Left]:red[:] {st.session_state['moves_left']}**")
     st.info(icon=":material/shield:", body=f"**:orange[Army Strength]:red[:] {st.session_state['army_strength'][st.session_state['current_player']]}**")
 
-app()
+if __name__ == "__main__":
+    app()
