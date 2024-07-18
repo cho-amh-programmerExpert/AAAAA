@@ -9,7 +9,8 @@ import toml
 #set_page_info("Pixel Territories", "🚩")
 
 # Load configuration from a TOML file
-config = toml.load('../Configs/minigames/pixel_territories.toml')
+#config = toml.load('../Configs/minigames/pixel_territories.toml')
+config = toml.load("config.toml")
 
 # Configuration variables
 bonus_turn = config['bonus_turn']
