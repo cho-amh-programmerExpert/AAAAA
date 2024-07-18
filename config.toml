@@ -1,9 +1,10 @@
 # config.toml
-
 [units]
-infantry = { attack = 5, defense = 5, cost = 10 }
+infantry = { attack = 5, defense = 3, cost = 10 }
 tank = { attack = 10, defense = 8, cost = 20 }
-artillery = { attack = 15, defense = 5, cost = 25 }
+aircraft = { attack = 15, defense = 5, cost = 30 }
 
-[max_forces_per_turn]
-max = 150
+[game]
+map_width = 10
+map_height = 10
+max_recruits_per_turn = 150
