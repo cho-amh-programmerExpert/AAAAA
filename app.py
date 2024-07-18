@@ -1,24 +1,33 @@
 import streamlit as st
 from streamlit_antd_components import divider as sac_divider
 from streamlit_extras.let_it_rain import rain as rain_emoji
-#from CustomModules.initializer import initial_run, set_page_info
+# from CustomModules.initializer import initial_run, set_page_info
 import numpy as np
 import random
 import toml
 
-#set_page_info("Pixel Territories", "🚩")
+# set_page_info("Pixel Territories", "🚩")
 
 # Load configuration from a TOML file
-config = toml.load('config.toml')
+config = toml.load('../Configs/minigames/pixel_territories.toml')
 
 # Configuration variables
 bonus_turn = config['bonus_turn']
 max_water_province_percentage = config['max_water_province_percentage']
 max_grid_size = config["max_grid_size"]
-army_config = config['army']
 
-avr_rarity = np.mean([army_config[x]["rarity"] for x in army_config])
-st.write(avr_rarity)
+# Load army configuration from a TOML file
+army_config = toml.load('config.toml')['army']
+
+# Army units
+army_units = []
+for unit in army_config:
+    army_units.append({
+        'name': unit,
+        'attack': army_config[unit]['attack'],
+        'defense': army_config[unit]['defense'],
+        'rarity': army_config[unit]['rarity']
+    })
 
 nation_colors = {
     1: "blue",
@@ -47,8 +56,6 @@ def reset(x: int = 10, y: int = 10, num_players: int = 2, default_names=None, wa
     st.session_state['moves_left'] = 1
     st.session_state['num_players'] = num_players
     st.session_state['removed_players'] = set()
-
-    # Initialize army for each player
     st.session_state['armies'] = {i: [] for i in range(1, num_players + 1)}
 
     # Add water provinces based on the configured percentage
@@ -118,14 +125,12 @@ def app():
 
             opponent_players = [i for i in opponent_players if i not in st.session_state['removed_players']]
             if (st.session_state['map'][row, col] == 0 or st.session_state['map'][row, col] in opponent_players) and is_adjacent_to_player(row, col, current_player):
-                if st.session_state['map'][row, col] in opponent_players:
-                    # Engage in battle
-                    opponent = st.session_state['map'][row, col]
-                    if not battle(current_player, opponent):
-                        return
-
                 st.session_state['map'][row, col] = current_player
                 st.session_state['player_territories'][current_player].append((row, col))
+
+                # Army allocation
+                allocate_army(current_player)
+                
                 for opponent in opponent_players:
                     if (row, col) in st.session_state['player_territories'][opponent]:
                         st.session_state['player_territories'][opponent].remove((row, col))
@@ -136,19 +141,19 @@ def app():
                         if all(capital is None for capital in st.session_state['capitals'].values() if capital != st.session_state['capitals'][current_player]):
                             st.session_state['phase'] = f'player_{current_player}_wins'
                             return
-
                 if (row, col) == st.session_state['special_province']:
                     st.session_state['special_owner'] = current_player
                     update_moves_left()
-                else:
-                    gain_army(current_player)
-
                 moves_left -= 1
                 if moves_left == 0:
                     switch_player()
                     update_moves_left()
                 else:
                     st.session_state['moves_left'] = moves_left
+
+    def allocate_army(player):
+        random_unit = random.choices(army_units, weights=[unit['rarity'] for unit in army_units], k=1)[0]
+        st.session_state['armies'][player].append(random_unit)
 
     def is_adjacent_to_player(row, col, player):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -166,33 +171,6 @@ def app():
             st.session_state['moves_left'] = bonus_turn
         else:
             st.session_state['moves_left'] = 1
-
-    def gain_army(player):
-        units = list(army_config.keys())
-        probabilities = [100 - army_config[unit]['rarity'] for unit in units]
-        total_probability = sum(probabilities)
-        normalized_probabilities = [p / total_probability for p in probabilities]
-        gained_unit = random.choices(units, weights=normalized_probabilities, k=1)[0]
-        st.session_state['armies'][player].append(army_config[gained_unit])
-        st.toast(icon=":crossed_swords:", body=f"**:green[Player {player}] gained a {gained_unit} unit!**")
-
-    def battle(attacker, defender):
-        attacker_army = st.session_state['armies'][attacker]
-        defender_army = st.session_state['armies'][defender]
-
-        if not attacker_army:
-            return False
-
-        attack_strength = sum(unit['attack'] for unit in attacker_army)
-        defense_strength = sum(unit['defense'] for unit in defender_army)
-
-        if attack_strength >= defense_strength:
-            st.session_state['armies'][attacker] = []
-            st.session_state['armies'][defender] = []
-            return True
-        else:
-            st.session_state['armies'][attacker] = []
-            return False
 
     @st.experimental_dialog("🏴 Match Settings 🏴")
     def input_country_names():
@@ -234,6 +212,12 @@ def app():
         st.info(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
         st.toast(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
         st.info(icon=f":material/counter_{st.session_state['moves_left']}:", body=f"**:orange[Moves Left]:red[:] {st.session_state['moves_left']}**")
+
+        for player in range(1, st.session_state['num_players'] + 1):
+            st.subheader(f"Player {player} Armies")
+            for unit in st.session_state['armies'][player]:
+                st.write(f"{unit['name']} (Attack: {unit['attack']}, Defense: {unit['defense']}, Rarity: {unit['rarity']})")
+
     elif 'wins' in st.session_state['phase']:
         winner = st.session_state['phase'].split('_')[1]
 
@@ -270,10 +254,9 @@ def app():
 
     # Display the map
     display_map()
-    st.write(st.session_state.armies)
 
 try:
-    #initial_run(lambda: app())
+    # initial_run(lambda: app())
     app()
 except:
     pass
