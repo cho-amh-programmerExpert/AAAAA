@@ -1,12 +1,20 @@
 import streamlit as st
 from streamlit_antd_components import divider as sac_divider
 from streamlit_extras.let_it_rain import rain as rain_emoji
+from CustomModules.initializer import initial_run, set_page_info
 import numpy as np
 import random
 import toml
 
-# Load configuration from merged TOML file
-config = toml.load('pixel_territories.toml')
+set_page_info("Pixel Territories", "🚩")
+
+# Load configuration from a TOML file
+config = toml.load('config.toml')
+
+# Configuration variables
+bonus_turn = config['bonus_turn']
+max_water_province_percentage = config['max_water_province_percentage']
+max_grid_size = config["max_grid_size"]
 units = config['units']
 
 nation_colors = {
@@ -16,12 +24,12 @@ nation_colors = {
     4: "grey"
 }
 
-x, y = 10, 10
+x, y = 2, 2
 num_players = 2
 default_names = ["D1", "D2"]
 water_province_percentage = 20
 
-def reset(x: int = 10, y: int = 10, num_players: int = 2, default_names=None):
+def reset(x: int = 10, y: int = 10, num_players: int = 2, default_names=None, water_per: int=10):
     if default_names is None:
         default_names = [f"D{i}" for i in range(1, num_players + 1)]
     
@@ -39,7 +47,7 @@ def reset(x: int = 10, y: int = 10, num_players: int = 2, default_names=None):
     st.session_state['armies'] = {i: [] for i in range(1, num_players + 1)}
 
     # Add water provinces based on the configured percentage
-    num_water_provinces = int((x * y) * config['game']['max_water_province_percentage'] / 100)
+    num_water_provinces = int((x * y) * water_per / 100)
     for _ in range(num_water_provinces):
         while True:
             wx, wy = random.randint(0, y - 1), random.randint(0, x - 1)
@@ -107,25 +115,50 @@ def app():
             if (st.session_state['map'][row, col] == 0 or st.session_state['map'][row, col] in opponent_players) and is_adjacent_to_player(row, col, current_player):
                 st.session_state['map'][row, col] = current_player
                 st.session_state['player_territories'][current_player].append((row, col))
-                for opponent in opponent_players:
-                    if (row, col) in st.session_state['player_territories'][opponent]:
+                
+                if st.session_state['map'][row, col] in opponent_players:
+                    opponent = st.session_state['map'][row, col]
+                    result = fight(current_player, opponent)
+                    if result:
+                        st.session_state['player_territories'][current_player].append((row, col))
                         st.session_state['player_territories'][opponent].remove((row, col))
-                        
-                    if (row, col) == st.session_state['capitals'][opponent]:
-                        st.session_state['capitals'][opponent] = None
-                        
-                        if all(capital is None for capital in st.session_state['capitals'].values() if capital != st.session_state['capitals'][current_player]):
-                            st.session_state['phase'] = f'player_{current_player}_wins'
-                            return
+                        if (row, col) == st.session_state['capitals'][opponent]:
+                            st.session_state['capitals'][opponent] = None
+                            if all(capital is None for capital in st.session_state['capitals'].values() if capital != st.session_state['capitals'][current_player]):
+                                st.session_state['phase'] = f'player_{current_player}_wins'
+                                return
+
                 if (row, col) == st.session_state['special_province']:
                     st.session_state['special_owner'] = current_player
                     update_moves_left()
+
                 moves_left -= 1
                 if moves_left == 0:
                     switch_player()
                     update_moves_left()
                 else:
                     st.session_state['moves_left'] = moves_left
+
+                # Add new unit to the player's army
+                new_unit = get_random_unit()
+                st.session_state['armies'][current_player].append(new_unit)
+                st.session_state['armies'][current_player].sort(key=lambda x: x['rarity'])
+
+    def get_random_unit():
+        rarity_sum = sum(unit['rarity'] for unit in units)
+        pick = random.uniform(0, rarity_sum)
+        current = 0
+        for unit in units:
+            current += unit['rarity']
+            if current > pick:
+                return unit
+
+    def fight(attacker, defender):
+        attacker_army = st.session_state['armies'][attacker]
+        defender_army = st.session_state['armies'][defender]
+        attacker_strength = sum(unit['attack'] for unit in attacker_army)
+        defender_strength = sum(unit['defense'] for unit in defender_army)
+        return attacker_strength > defender_strength
 
     def is_adjacent_to_player(row, col, player):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -140,7 +173,7 @@ def app():
 
     def update_moves_left():
         if st.session_state['special_owner'] == st.session_state['current_player']:
-            st.session_state['moves_left'] = config['game']['bonus_turn']
+            st.session_state['moves_left'] = bonus_turn
         else:
             st.session_state['moves_left'] = 1
 
@@ -154,10 +187,10 @@ def app():
 
         sac_divider("Map Customization", "map-fill", "start", 'horizontal', False, True)
         sidebar_cols = st.columns((3, 1, 3), vertical_alignment='center')
-        x = sidebar_cols[0].number_input("X:", min_value=2, max_value=config['game']['max_grid_size'], value=5, key="mapsize-x")
+        x = sidebar_cols[0].number_input("X:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-x")
         sidebar_cols[1].write("-X-")
-        y = sidebar_cols[2].number_input("Y:", min_value=2, max_value=config['game']['max_grid_size'], value=5, key="mapsize-y")
-        water_per_inp = st.slider("**Water Province Percentage:**", min_value=0, max_value=config['game']['max_water_province_percentage'], value=int(str(float(config['game']['max_water_province_percentage']/2)).split(".")[0]), step=1)
+        y = sidebar_cols[2].number_input("Y:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-y")
+        water_per_inp = st.slider("**Water Province Percentage:**", min_value=0, max_value=max_water_province_percentage, value=int(str(float(max_water_province_percentage/2)).split(".")[0]), step=1)
 
         if st.button("🚩 Start Game 🚩", use_container_width=True):
             invalid_names = ["🟫", "🔰", "⭐️"]
@@ -167,7 +200,7 @@ def app():
                 if any(name == "" for name in default_names):
                     st.toast(icon="🔻", body="Please enter names for all countries!")
                 else:
-                    reset(x, y, num_players, default_names)
+                    reset(x, y, num_players, default_names, water_per_inp)
                     st.session_state['phase'] = 'capital_selection'
                     st.rerun()
 
@@ -184,6 +217,13 @@ def app():
         st.info(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
         st.toast(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
         st.info(icon=f":material/counter_{st.session_state['moves_left']}:", body=f"**:orange[Moves Left]:red[:] {st.session_state['moves_left']}**")
+
+        # Display each player's army 
+        for player, army in st.session_state['armies'].items():
+            st.write(f"**:rainbow[Player {player}'s Army]**")
+            for unit in army:
+                st.write(f"- {unit['name']} (Attack: {unit['attack']}, Defense: {unit['defense']}, Rarity: {unit['rarity']})")
+
     elif 'wins' in st.session_state['phase']:
         winner = st.session_state['phase'].split('_')[1]
 
@@ -204,7 +244,7 @@ def app():
         st.divider()
 
         st.write("```🔰``` → Capital")
-        st.write(f"```⭐``` → Special Province (capture to gain ```{config['game']['bonus_turn']}``` moves per turn)")
+        st.write(f"```⭐``` → Special Province (capture to gain ```{bonus_turn}``` moves per turn)")
 
         st.divider()
 
@@ -222,6 +262,6 @@ def app():
     display_map()
 
 try:
-    app()
+    initial_run(lambda: app())
 except:
     pass
