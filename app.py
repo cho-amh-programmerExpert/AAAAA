@@ -18,35 +18,36 @@ if "map" not in st.session_state:
     st.session_state.units = [{}, {}]
     st.session_state.armies = [[], []]
     st.session_state.selected_army = None
+    st.session_state.current_player = 0  # 0 for Player 1, 1 for Player 2
 
 def end_turn():
-    st.session_state.turn = 1 - st.session_state.turn
+    st.session_state.current_player = 1 - st.session_state.current_player
     st.session_state.selected_army = None
 
 def recruit_units(unit_type, quantity):
-    turn = st.session_state.turn
-    if st.session_state.resources[turn] >= units[unit_type]["cost"] * quantity:
-        st.session_state.resources[turn] -= units[unit_type]["cost"] * quantity
-        if unit_type in st.session_state.units[turn]:
-            st.session_state.units[turn][unit_type] += quantity
+    player = st.session_state.current_player
+    if st.session_state.resources[player] >= units[unit_type]["cost"] * quantity:
+        st.session_state.resources[player] -= units[unit_type]["cost"] * quantity
+        if unit_type in st.session_state.units[player]:
+            st.session_state.units[player][unit_type] += quantity
         else:
-            st.session_state.units[turn][unit_type] = quantity
+            st.session_state.units[player][unit_type] = quantity
 
 def handle_click(row, col):
-    turn = st.session_state.turn
-    if st.session_state.capitals[turn] is None:
-        st.session_state.capitals[turn] = (row, col)
-        st.session_state.map[row, col] = turn + 1
-    elif st.session_state.selected_army is None and st.session_state.map[row, col] == turn + 1:
+    player = st.session_state.current_player
+    if st.session_state.capitals[player] is None:
+        st.session_state.capitals[player] = (row, col)
+        st.session_state.map[row, col] = player + 1
+    elif st.session_state.selected_army is None and st.session_state.map[row, col] == player + 1:
         st.session_state.selected_army = (row, col)
     elif st.session_state.selected_army is not None:
         selected_row, selected_col = st.session_state.selected_army
         if is_adjacent(selected_row, selected_col, row, col):
             if st.session_state.map[row, col] == 0:
                 # Move to unoccupied territory
-                st.session_state.map[row, col] = turn + 1
+                st.session_state.map[row, col] = player + 1
                 st.session_state.selected_army = (row, col)
-            elif st.session_state.map[row, col] != turn + 1:
+            elif st.session_state.map[row, col] != player + 1:
                 # Attack enemy territory
                 attack(row, col)
                 st.session_state.selected_army = (row, col)
@@ -55,35 +56,35 @@ def is_adjacent(row1, col1, row2, col2):
     return abs(row1 - row2) + abs(col1 - col2) == 1
 
 def attack(target_row, target_col):
-    turn = 1 if st.session_state.turn%2 != 0 else 2
-    enemy = 1 - turn
-    attacking_units = st.session_state.units[turn]
+    player = st.session_state.current_player
+    enemy = 1 - player
+    attacking_units = st.session_state.units[player]
     defending_units = st.session_state.units[enemy]
     
     attack_strength = sum(units[unit]["attack"] * count for unit, count in attacking_units.items())
     defense_strength = sum(units[unit]["defense"] * count for unit, count in defending_units.items())
     
     if attack_strength > defense_strength:
-        st.session_state.map[target_row, target_col] = turn + 1
+        st.session_state.map[target_row, target_col] = player + 1
         st.session_state.units[enemy] = {}
         # Reduce the attacking units proportionally to their contribution to the attack strength
         for unit, count in attacking_units.items():
             loss_ratio = defense_strength / attack_strength
-            st.session_state.units[turn][unit] = max(0, count - int(count * loss_ratio))
+            st.session_state.units[player][unit] = max(0, count - int(count * loss_ratio))
     else:
         # Reduce the defending units proportionally to their contribution to the defense strength
         for unit, count in defending_units.items():
             loss_ratio = attack_strength / defense_strength
             st.session_state.units[enemy][unit] = max(0, count - int(count * loss_ratio))
-        st.session_state.units[turn] = {}
+        st.session_state.units[player] = {}
 
 # Display map
-st.write(f"Player {st.session_state.turn + 1}'s turn")
+st.write(f"Player {st.session_state.current_player + 1}'s turn")
 for row in range(map_height):
     cols = st.columns(map_width)
     for col in range(map_width):
         if st.session_state.map[row, col] == 0:
-            button_label = f"🟤"
+            button_label = f"{row},{col}"
         else:
             button_label = f"P{st.session_state.map[row, col]}"
         cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
