@@ -182,8 +182,9 @@ def app():
         y = sidebar_cols[2].number_input("Y:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-y")
 
         water_percentage = st.slider("Water Province Percentage", 0, 100, water_province_percentage)
-        reset(x, y, num_players, default_names, water_percentage)
-        st.experimental_rerun()
+        if st.button("EXPERIMENT!"):
+            reset(x, y, num_players, default_names, water_percentage)
+            st.experimental_rerun()
 
     if st.session_state['phase'] == 'name_selection':
         input_country_names()
