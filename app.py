@@ -1,122 +1,81 @@
 import streamlit as st
-import toml
 import numpy as np
+import toml
 
-# Load the TOML file
+# Load config
 config = toml.load("config.toml")
+units = config["units"]
+max_forces_per_turn = config["max_forces_per_turn"]["max"]
 
-# Define the game state
-units = config['units']
-players = config['players']
-provinces = config['provinces']
-recruit_costs = config['recruit_costs']
+# Initialize game state
+if "game_state" not in st.session_state:
+    st.session_state.game_state = {
+        "map": np.zeros((10, 10)),  # 10x10 map
+        "player_capitals": [None, None],
+        "current_player": 0,
+        "forces": [{}, {}],  # Forces for each player
+        "resources": [100, 100],  # Starting resources for each player
+        "turn": 1,
+    }
 
-# Initialize session state
-if 'turn' not in st.session_state:
-    st.session_state.turn = 1
-    st.session_state.current_player = "Player1"
-    st.session_state.units = units
-    st.session_state.players = players
-    st.session_state.provinces = provinces
-    st.session_state.map_size = 2  # 2x2 map for simplicity
-    st.session_state.selected_province = None
+def recruit_units(player, unit_type, quantity):
+    if unit_type in units and quantity <= max_forces_per_turn:
+        cost = units[unit_type]["cost"] * quantity
+        if st.session_state.game_state["resources"][player] >= cost:
+            st.session_state.game_state["resources"][player] -= cost
+            if unit_type in st.session_state.game_state["forces"][player]:
+                st.session_state.game_state["forces"][player][unit_type] += quantity
+            else:
+                st.session_state.game_state["forces"][player][unit_type] = quantity
 
-def switch_turn():
-    if st.session_state.current_player == "Player1":
-        st.session_state.current_player = "Player2"
-    else:
-        st.session_state.current_player = "Player1"
-    st.session_state.turn += 1
+def place_capital(player, x, y):
+    if st.session_state.game_state["player_capitals"][player] is None:
+        st.session_state.game_state["player_capitals"][player] = (x, y)
+        st.session_state.game_state["map"][x, y] = player + 1
 
-def recruit(unit_type):
-    player = st.session_state.current_player
-    cost = recruit_costs[unit_type]
-    if st.session_state.players[player]['resources'] >= cost:
-        st.session_state.players[player]['resources'] -= cost
-        st.session_state.players[player]['units'].append(unit_type)
-        # Add unit to selected province
-        province_id = st.session_state.selected_province
-        st.session_state.provinces[province_id]['units'].append(unit_type)
+def move_forces(player, from_x, from_y, to_x, to_y):
+    if st.session_state.game_state["map"][from_x, from_y] == player + 1:
+        st.session_state.game_state["map"][from_x, from_y] = 0
+        st.session_state.game_state["map"][to_x, to_y] = player + 1
 
-def attack():
-    province_id = st.session_state.selected_province
-    province = st.session_state.provinces[province_id]
-    attacker_units = province['units']
-    
-    adjacent_province_ids = get_adjacent_provinces(province_id)
-    for adj_id in adjacent_province_ids:
-        adj_province = st.session_state.provinces[adj_id]
-        if adj_province['owner'] != st.session_state.current_player:
-            defender_units = adj_province['units']
-            if defender_units:
-                attacker = st.session_state.units[attacker_units[0]]
-                defender = st.session_state.units[defender_units[0]]
-                damage = max(0, attacker['attack'] - defender['defense'])
-                defender['health'] -= damage
-                if defender['health'] <= 0:
-                    adj_province['units'].remove(defender_units[0])
-                if not adj_province['units']:
-                    adj_province['owner'] = st.session_state.current_player
-                break
+def attack(player, from_x, from_y, to_x, to_y):
+    if st.session_state.game_state["map"][from_x, from_y] == player + 1:
+        enemy_player = 1 - player
+        if st.session_state.game_state["map"][to_x, to_y] == enemy_player + 1:
+            # Simulate battle
+            player_forces = st.session_state.game_state["forces"][player]
+            enemy_forces = st.session_state.game_state["forces"][enemy_player]
 
-def get_adjacent_provinces(province_id):
-    row, col = divmod(int(province_id), st.session_state.map_size)
-    adjacent = []
-    for r, c in [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]:
-        if 0 <= r < st.session_state.map_size and 0 <= c < st.session_state.map_size:
-            adjacent.append(str(r * st.session_state.map_size + c))
-    return adjacent
+            player_attack = sum(units[ut]["attack"] * qty for ut, qty in player_forces.items())
+            enemy_defense = sum(units[ut]["defense"] * qty for ut, qty in enemy_forces.items())
 
-# Display game state
-st.title("Turn-Based Strategy Game")
-st.write(f"Turn: {st.session_state.turn}")
-st.write(f"Current Player: {st.session_state.current_player}")
+            if player_attack > enemy_defense:
+                st.session_state.game_state["map"][to_x, to_y] = player + 1
+                st.session_state.game_state["forces"][enemy_player] = {}
 
-st.header("Provinces")
-map_matrix = np.zeros((st.session_state.map_size, st.session_state.map_size), dtype=int)
+# UI for the map
+for i in range(10):
+    cols = st.columns(10)
+    for j in range(10):
+        with cols[j]:
+            if st.session_state.game_state["map"][i, j] == 0:
+                st.button("", key=f"{i}-{j}", on_click=place_capital, args=(st.session_state.game_state["current_player"], i, j))
+            elif st.session_state.game_state["map"][i, j] == 1:
+                st.button("P1", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))  # Modify for actual move logic
+            elif st.session_state.game_state["map"][i, j] == 2:
+                st.button("P2", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))  # Modify for actual move logic
 
-for i in range(st.session_state.map_size ** 2):
-    row, col = divmod(i, st.session_state.map_size)
-    province = st.session_state.provinces[str(i)]
-    if province['owner'] == st.session_state.current_player:
-        map_matrix[row, col] = 1
+# UI for recruiting units
+st.popover("Recruit Units")
+unit_type = st.selectbox("Select Unit Type", options=list(units.keys()))
+quantity = st.slider("Quantity", min_value=1, max_value=max_forces_per_turn)
+st.button("Recruit", on_click=recruit_units, args=(st.session_state.game_state["current_player"], unit_type, quantity))
 
-for row in range(map_matrix.shape[0]):
-    cols = st.columns(map_matrix.shape[1])
-    for col in range(map_matrix.shape[1]):
-        province_id = row * st.session_state.map_size + col
-        province = st.session_state.provinces[str(province_id)]
-        if cols[col].button(f"{province['owner']}\nProv {province_id}"):
-            st.session_state.selected_province = str(province_id)
-            st.experimental_rerun()
+# Next Turn Button
+if st.button("End Turn"):
+    st.session_state.game_state["current_player"] = 1 - st.session_state.game_state["current_player"]
+    st.session_state.game_state["turn"] += 1
 
-st.header("Actions")
-
-if st.session_state.selected_province:
-    st.write(f"Selected Province: {st.session_state.selected_province}")
-
-action = st.radio("Select Action", ["Recruit", "Attack", "End Turn"], index=2)
-
-if action == "Recruit":
-    unit_type = st.selectbox("Unit Type", list(units.keys()))
-    if st.button("Recruit"):
-        recruit(unit_type)
-        st.experimental_rerun()
-
-elif action == "Attack":
-    if st.button("Execute Attack"):
-        attack()
-        st.experimental_rerun()
-
-if action == "End Turn":
-    if st.button("End Turn"):
-        switch_turn()
-        st.experimental_rerun()
-
-st.header("Player Info")
-player = st.session_state.players[st.session_state.current_player]
-st.write(f"Resources: {player['resources']}")
-st.write("Units:")
-for unit_name in player['units']:
-    unit = st.session_state.units[unit_name]
-    st.write(f"{unit_name} - Attack: {unit['attack']}, Defense: {unit['defense']}, Health: {unit['health']}")
+# Display resources
+st.write(f"Player 1 Resources: {st.session_state.game_state['resources'][0]}")
+st.write(f"Player 2 Resources: {st.session_state.game_state['resources'][1]}")
