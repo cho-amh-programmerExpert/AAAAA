@@ -32,7 +32,6 @@ def place_capital(player, x, y):
     if st.session_state.game_state["player_capitals"][player] is None:
         st.session_state.game_state["player_capitals"][player] = (x, y)
         st.session_state.game_state["map"][x, y] = player + 1
-        st.experimental_rerun()  # Re-run to update the map
 
 def move_forces(player, from_x, from_y, to_x, to_y):
     if st.session_state.game_state["map"][from_x, from_y] == player + 1:
@@ -76,6 +75,9 @@ with st.popover("Recruit Units"):
 if st.button("End Turn"):
     st.session_state.game_state["current_player"] = 1 - st.session_state.game_state["current_player"]
     st.session_state.game_state["turn"] += 1
+
+# Display current player's turn
+st.toast(f"Player {st.session_state.game_state['current_player'] + 1}'s turn")
 
 # Display resources
 st.write(f"Player 1 Resources: {st.session_state.game_state['resources'][0]}")
