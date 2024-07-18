@@ -1,12 +1,12 @@
 import streamlit as st
 from streamlit_antd_components import divider as sac_divider
 from streamlit_extras.let_it_rain import rain as rain_emoji
-from CustomModules.initializer import initial_run, set_page_info
+# from CustomModules.initializer import initial_run, set_page_info
 import numpy as np
 import random
 import toml
 
-set_page_info("Pixel Territories", "🚩")
+# set_page_info("Pixel Territories", "🚩")
 
 # Load configuration from a TOML file
 config = toml.load('config.toml')
@@ -262,6 +262,7 @@ def app():
     display_map()
 
 try:
-    initial_run(lambda: app())
+    # initial_run(lambda: app())
+    app()
 except:
     pass
