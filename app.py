@@ -2,94 +2,68 @@ import streamlit as st
 import numpy as np
 import toml
 
-# Load config
+# Load configuration
 config = toml.load("config.toml")
 units = config["units"]
-max_forces_per_turn = config["max_forces_per_turn"]["max"]
+map_width = config["game"]["map_width"]
+map_height = config["game"]["map_height"]
+max_recruits_per_turn = config["game"]["max_recruits_per_turn"]
 
-# Initialize game state
-if "game_state" not in st.session_state:
-    st.session_state.game_state = {
-        "map": np.zeros((10, 10)),  # 10x10 map
-        "player_capitals": [None, None],
-        "current_player": 0,
-        "forces": [{}, {}],  # Forces for each player
-        "resources": [100, 100],  # Starting resources for each player
-        "turn": 1,
-    }
+# Initialize session state
+if "map" not in st.session_state:
+    st.session_state.map = np.zeros((map_height, map_width), dtype=int)
+    st.session_state.capitals = [None, None]
+    st.session_state.turn = 0
+    st.session_state.resources = [100, 100]
+    st.session_state.units = [{}, {}]
+    st.session_state.armies = [None, None]
 
-def recruit_units(player, unit_type, quantity):
-    if unit_type in units and quantity <= max_forces_per_turn:
-        cost = units[unit_type]["cost"] * quantity
-        if st.session_state.game_state["resources"][player] >= cost:
-            st.session_state.game_state["resources"][player] -= cost
-            if unit_type in st.session_state.game_state["forces"][player]:
-                st.session_state.game_state["forces"][player][unit_type] += quantity
-            else:
-                st.session_state.game_state["forces"][player][unit_type] = quantity
+def end_turn():
+    st.session_state.turn = 1 - st.session_state.turn
 
-def place_capital(player, x, y):
-    if st.session_state.game_state["player_capitals"][player] is None:
-        st.session_state.game_state["player_capitals"][player] = (x, y)
-        st.session_state.game_state["map"][x, y] = player + 1
+def recruit_units(unit_type, quantity):
+    turn = st.session_state.turn
+    if st.session_state.resources[turn] >= units[unit_type]["cost"] * quantity:
+        st.session_state.resources[turn] -= units[unit_type]["cost"] * quantity
+        if unit_type in st.session_state.units[turn]:
+            st.session_state.units[turn][unit_type] += quantity
+        else:
+            st.session_state.units[turn][unit_type] = quantity
 
-def is_adjacent(x1, y1, x2, y2):
-    return abs(x1 - x2) <= 1 and abs(y1 - y2) <= 1
+def handle_click(row, col):
+    turn = st.session_state.turn
+    if st.session_state.capitals[turn] is None:
+        st.session_state.capitals[turn] = (row, col)
+        st.session_state.map[row, col] = turn + 1
+    elif st.session_state.armies[turn] is None:
+        st.session_state.armies[turn] = (row, col)
+    else:
+        # Add logic for attacking/moving here
+        pass
 
-def move_forces(player, from_x, from_y, to_x, to_y):
-    if st.session_state.game_state["map"][from_x, from_y] == player + 1:
-        if is_adjacent(from_x, from_y, to_x, to_y):
-            st.session_state.game_state["map"][from_x, from_y] = 0
-            st.session_state.game_state["map"][to_x, to_y] = player + 1
+# Display map
+st.write(f"Player {st.session_state.turn + 1}'s turn")
+for row in range(map_height):
+    cols = st.columns(map_width)
+    for col in range(map_width):
+        if st.session_state.map[row, col] == 0:
+            button_label = f"{row},{col}"
+        else:
+            button_label = f"P{st.session_state.map[row, col]}"
+        cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
 
-def attack(player, from_x, from_y, to_x, to_y):
-    if st.session_state.game_state["map"][from_x, from_y] == player + 1:
-        if is_adjacent(from_x, from_y, to_x, to_y):
-            enemy_player = 1 - player
-            if st.session_state.game_state["map"][to_x, to_y] == enemy_player + 1:
-                # Simulate battle
-                player_forces = st.session_state.game_state["forces"][player]
-                enemy_forces = st.session_state.game_state["forces"][enemy_player]
-
-                player_attack = sum(units[ut]["attack"] * qty for ut, qty in player_forces.items())
-                enemy_defense = sum(units[ut]["defense"] * qty for ut, qty in enemy_forces.items())
-
-                if player_attack > enemy_defense:
-                    st.session_state.game_state["map"][to_x, to_y] = player + 1
-                    st.session_state.game_state["forces"][enemy_player] = {}
-
-# UI for the map
-for i in range(10):
-    cols = st.columns(10)
-    for j in range(10):
-        with cols[j]:
-            if st.session_state.game_state["map"][i, j] == 0:
-                st.button("", key=f"{i}-{j}", on_click=place_capital, args=(st.session_state.game_state["current_player"], i, j))
-            elif st.session_state.game_state["map"][i, j] == 1:
-                if st.session_state.game_state["player_capitals"][0] == (i, j):
-                    st.button("P1 (C)", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))  # Capital of Player 1
-                else:
-                    st.button("P1", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))
-            elif st.session_state.game_state["map"][i, j] == 2:
-                if st.session_state.game_state["player_capitals"][1] == (i, j):
-                    st.button("P2 (C)", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))  # Capital of Player 2
-                else:
-                    st.button("P2", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))
-
-# UI for recruiting units
+# Recruitment UI
 with st.popover("Recruit Units"):
-    quantity = st.slider("Quantity", min_value=1, max_value=max_forces_per_turn)
     for unit_type in units.keys():
-        st.button(unit_type, on_click=recruit_units, args=(st.session_state.game_state["current_player"], unit_type, quantity))
+        quantity = st.slider(f"Number of {unit_type}", 0, max_recruits_per_turn)
+        if st.button(f"Recruit {unit_type}"):
+            recruit_units(unit_type, quantity)
 
-# Next Turn Button
-if st.button("End Turn"):
-    st.session_state.game_state["current_player"] = 1 - st.session_state.game_state["current_player"]
-    st.session_state.game_state["turn"] += 1
+# End turn button
+st.button("Next Turn", on_click=end_turn)
 
-# Display current player's turn
-st.toast(f"Player {st.session_state.game_state['current_player'] + 1}'s turn")
-
-# Display resources
-st.write(f"Player 1 Resources: {st.session_state.game_state['resources'][0]}")
-st.write(f"Player 2 Resources: {st.session_state.game_state['resources'][1]}")
+# Display resources and units
+st.write(f"Resources for Player 1: {st.session_state.resources[0]}")
+st.write(f"Resources for Player 2: {st.session_state.resources[1]}")
+st.write(f"Player 1's units: {st.session_state.units[0]}")
+st.write(f"Player 2's units: {st.session_state.units[1]}")
