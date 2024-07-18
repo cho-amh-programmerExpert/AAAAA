@@ -1,5 +1,11 @@
 # config.toml
 
+# Existing Configuration
+bonus_turn = 2
+max_water_province_percentage = 20
+max_grid_size = 10
+
+# Army Configuration
 [army]
 # Define different types of army units with their attributes
 # Attack: the attack power of the unit
