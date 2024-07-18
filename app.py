@@ -18,7 +18,7 @@ max_grid_size = config["max_grid_size"]
 army_config = config['army']
 
 avr_rarity = np.mean([army_config[x]["rarity"] for x in army_config])
-st.write(avr_config)
+st.write(avr_rarity)
 
 nation_colors = {
     1: "blue",
