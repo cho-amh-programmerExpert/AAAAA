@@ -9,12 +9,15 @@ import toml
 # set_page_info("Pixel Territories", "🚩")
 
 # Load configuration from a TOML file
-config = toml.load('../Configs/minigames/pixel_territories.toml')
+# config = toml.load('../Configs/minigames/pixel_territories.toml')
 
 # Configuration variables
-bonus_turn = config['bonus_turn']
-max_water_province_percentage = config['max_water_province_percentage']
-max_grid_size = config["max_grid_size"]
+# bonus_turn = config['bonus_turn']
+bonus_turn = 3
+# max_water_province_percentage = config['max_water_province_percentage']
+max_water_province_percentage = 0
+# max_grid_size = config["max_grid_size"]
+max_grid_size = 15
 
 # Load army configuration from a TOML file
 army_config = toml.load('config.toml')['army']
