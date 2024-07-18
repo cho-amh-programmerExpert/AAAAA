@@ -1,0 +1,19 @@
+[units]
+infantry = { attack = 5, defense = 3, health = 50 }
+cavalry = { attack = 8, defense = 4, health = 70 }
+archer = { attack = 7, defense = 2, health = 40 }
+
+[players]
+Player1 = { resources = 100, units = ["infantry"], provinces = [0, 1] }
+Player2 = { resources = 100, units = ["cavalry"], provinces = [2, 3] }
+
+[provinces]
+0 = { owner = "Player1", units = ["infantry"] }
+1 = { owner = "Player1", units = [] }
+2 = { owner = "Player2", units = ["cavalry"] }
+3 = { owner = "Player2", units = [] }
+
+[recruit_costs]
+infantry = 20
+cavalry = 30
+archer = 25
