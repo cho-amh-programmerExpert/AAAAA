@@ -55,7 +55,7 @@ def is_adjacent(row1, col1, row2, col2):
     return abs(row1 - row2) + abs(col1 - col2) == 1
 
 def attack(target_row, target_col):
-    turn = 1 st.session_state.turn%2 != 0 else 2
+    turn = 1 if st.session_state.turn%2 != 0 else 2
     enemy = 1 - turn
     attacking_units = st.session_state.units[turn]
     defending_units = st.session_state.units[enemy]
