@@ -32,6 +32,7 @@ def place_capital(player, x, y):
     if st.session_state.game_state["player_capitals"][player] is None:
         st.session_state.game_state["player_capitals"][player] = (x, y)
         st.session_state.game_state["map"][x, y] = player + 1
+        st.experimental_rerun()  # Re-run to update the map
 
 def move_forces(player, from_x, from_y, to_x, to_y):
     if st.session_state.game_state["map"][from_x, from_y] == player + 1:
@@ -66,10 +67,10 @@ for i in range(10):
                 st.button("P2", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))  # Modify for actual move logic
 
 # UI for recruiting units
-st.popover("Recruit Units")
-unit_type = st.selectbox("Select Unit Type", options=list(units.keys()))
-quantity = st.slider("Quantity", min_value=1, max_value=max_forces_per_turn)
-st.button("Recruit", on_click=recruit_units, args=(st.session_state.game_state["current_player"], unit_type, quantity))
+with st.popover("Recruit Units"):
+    quantity = st.slider("Quantity", min_value=1, max_value=max_forces_per_turn)
+    for unit_type in units.keys():
+        st.button(unit_type, on_click=recruit_units, args=(st.session_state.game_state["current_player"], unit_type, quantity))
 
 # Next Turn Button
 if st.button("End Turn"):
