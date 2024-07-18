@@ -16,9 +16,8 @@ bonus_turn = config['bonus_turn']
 max_water_province_percentage = config['max_water_province_percentage']
 max_grid_size = config["max_grid_size"]
 army_config = config['army']
-for I in army_config:
-    st.write(I)
-avr_rarity = np.mean([x["rarity"] for x in army_config])
+
+avr_rarity = np.mean([army_config[x]["rarity"] for x in army_config])
 st.write(avr_config)
 
 nation_colors = {
