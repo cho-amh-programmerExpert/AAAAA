@@ -33,25 +33,30 @@ def place_capital(player, x, y):
         st.session_state.game_state["player_capitals"][player] = (x, y)
         st.session_state.game_state["map"][x, y] = player + 1
 
+def is_adjacent(x1, y1, x2, y2):
+    return abs(x1 - x2) <= 1 and abs(y1 - y2) <= 1
+
 def move_forces(player, from_x, from_y, to_x, to_y):
     if st.session_state.game_state["map"][from_x, from_y] == player + 1:
-        st.session_state.game_state["map"][from_x, from_y] = 0
-        st.session_state.game_state["map"][to_x, to_y] = player + 1
+        if is_adjacent(from_x, from_y, to_x, to_y):
+            st.session_state.game_state["map"][from_x, from_y] = 0
+            st.session_state.game_state["map"][to_x, to_y] = player + 1
 
 def attack(player, from_x, from_y, to_x, to_y):
     if st.session_state.game_state["map"][from_x, from_y] == player + 1:
-        enemy_player = 1 - player
-        if st.session_state.game_state["map"][to_x, to_y] == enemy_player + 1:
-            # Simulate battle
-            player_forces = st.session_state.game_state["forces"][player]
-            enemy_forces = st.session_state.game_state["forces"][enemy_player]
+        if is_adjacent(from_x, from_y, to_x, to_y):
+            enemy_player = 1 - player
+            if st.session_state.game_state["map"][to_x, to_y] == enemy_player + 1:
+                # Simulate battle
+                player_forces = st.session_state.game_state["forces"][player]
+                enemy_forces = st.session_state.game_state["forces"][enemy_player]
 
-            player_attack = sum(units[ut]["attack"] * qty for ut, qty in player_forces.items())
-            enemy_defense = sum(units[ut]["defense"] * qty for ut, qty in enemy_forces.items())
+                player_attack = sum(units[ut]["attack"] * qty for ut, qty in player_forces.items())
+                enemy_defense = sum(units[ut]["defense"] * qty for ut, qty in enemy_forces.items())
 
-            if player_attack > enemy_defense:
-                st.session_state.game_state["map"][to_x, to_y] = player + 1
-                st.session_state.game_state["forces"][enemy_player] = {}
+                if player_attack > enemy_defense:
+                    st.session_state.game_state["map"][to_x, to_y] = player + 1
+                    st.session_state.game_state["forces"][enemy_player] = {}
 
 # UI for the map
 for i in range(10):
@@ -61,9 +66,15 @@ for i in range(10):
             if st.session_state.game_state["map"][i, j] == 0:
                 st.button("", key=f"{i}-{j}", on_click=place_capital, args=(st.session_state.game_state["current_player"], i, j))
             elif st.session_state.game_state["map"][i, j] == 1:
-                st.button("P1", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))  # Modify for actual move logic
+                if st.session_state.game_state["player_capitals"][0] == (i, j):
+                    st.button("P1 (C)", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))  # Capital of Player 1
+                else:
+                    st.button("P1", key=f"{i}-{j}", on_click=move_forces, args=(0, i, j, i, j))
             elif st.session_state.game_state["map"][i, j] == 2:
-                st.button("P2", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))  # Modify for actual move logic
+                if st.session_state.game_state["player_capitals"][1] == (i, j):
+                    st.button("P2 (C)", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))  # Capital of Player 2
+                else:
+                    st.button("P2", key=f"{i}-{j}", on_click=move_forces, args=(1, i, j, i, j))
 
 # UI for recruiting units
 with st.popover("Recruit Units"):
