@@ -78,7 +78,7 @@ for row in range(map_height):
     cols = st.columns(map_width)
     for col in range(map_width):
         if st.session_state.map[row, col] == 0:
-            button_label = f"{row},{col}"
+            button_label = f"🟤"
         else:
             button_label = f"P{st.session_state.map[row, col]}"
         cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
