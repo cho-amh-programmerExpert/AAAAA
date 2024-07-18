@@ -16,7 +16,7 @@ if "map" not in st.session_state:
     st.session_state.turn = 0
     st.session_state.resources = [100, 100]
     st.session_state.units = [{}, {}]
-    st.session_state.armies = [None, None]
+    st.session_state.armies = [[], []]
     st.session_state.selected_army = None
 
 def end_turn():
@@ -45,7 +45,6 @@ def handle_click(row, col):
             if st.session_state.map[row, col] == 0:
                 # Move to unoccupied territory
                 st.session_state.map[row, col] = turn + 1
-                st.session_state.armies[turn] = st.session_state.armies[turn]
                 st.session_state.selected_army = (row, col)
             elif st.session_state.map[row, col] != turn + 1:
                 # Attack enemy territory
@@ -67,10 +66,16 @@ def attack(target_row, target_col):
     if attack_strength > defense_strength:
         st.session_state.map[target_row, target_col] = turn + 1
         st.session_state.units[enemy] = {}
-        st.session_state.armies[turn] = (target_row, target_col)
+        # Reduce the attacking units proportionally to their contribution to the attack strength
+        for unit, count in attacking_units.items():
+            loss_ratio = defense_strength / attack_strength
+            st.session_state.units[turn][unit] = max(0, count - int(count * loss_ratio))
     else:
+        # Reduce the defending units proportionally to their contribution to the defense strength
+        for unit, count in defending_units.items():
+            loss_ratio = attack_strength / defense_strength
+            st.session_state.units[enemy][unit] = max(0, count - int(count * loss_ratio))
         st.session_state.units[turn] = {}
-        st.session_state.armies[turn] = None
 
 # Display map
 st.write(f"Player {st.session_state.turn + 1}'s turn")
@@ -84,7 +89,8 @@ for row in range(map_height):
         cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
 
 # Recruitment UI
-with st.popover("Recruit Units"):
+with st.sidebar:
+    st.header("Recruit Units")
     for unit_type in units.keys():
         quantity = st.slider(f"Number of {unit_type}", 0, max_recruits_per_turn, key=f"recruit_{unit_type}")
         if st.button(f"Recruit {unit_type}", key=f"button_{unit_type}"):
