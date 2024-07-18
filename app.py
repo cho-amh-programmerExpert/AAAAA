@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_antd_components import divider as sac_divider
 from streamlit_extras.let_it_rain import rain as rain_emoji
+# from CustomModules.initializer import initial_run, set_page_info
 import numpy as np
 import random
 import toml
@@ -159,23 +160,17 @@ def app():
         attacker_strength = sum(unit['attack'] for unit in attacker_army)
         defender_strength = sum(unit['defense'] for unit in defender_army)
 
-        # Determine the winner based on strength
+        # Simulate casualties
         if attacker_strength > defender_strength:
-            # Attacker wins, reduce the defender's army
-            st.session_state['armies'][defender] = reduce_army_strength(defender_army, 'defense')
+            # Attacker wins, reduce defender's army strength
+            for unit in defender_army:
+                unit['defense'] -= random.randint(1, 3)  # Example: reduce defense randomly
             return True
         else:
-            # Defender wins, reduce the attacker's army
-            st.session_state['armies'][attacker] = reduce_army_strength(attacker_army, 'attack')
+            # Defender wins, reduce attacker's army strength
+            for unit in attacker_army:
+                unit['attack'] -= random.randint(1, 3)  # Example: reduce attack randomly
             return False
-
-    def reduce_army_strength(army, attribute):
-        new_army = []
-        for unit in army:
-            unit[attribute] -= random.randint(2, 5)  # More significant reduction
-            if unit[attribute] > 0:
-                new_army.append(unit)
-        return new_army
 
     def is_adjacent_to_player(row, col, player):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -187,43 +182,100 @@ def app():
 
     def switch_player():
         st.session_state['current_player'] = (st.session_state['current_player'] % st.session_state['num_players']) + 1
-        if st.session_state['current_player'] in st.session_state['removed_players']:
-            switch_player()
-        elif len(st.session_state['player_territories'][st.session_state['current_player']]) == 0:
-            st.session_state['removed_players'].add(st.session_state['current_player'])
-            switch_player()
 
     def update_moves_left():
         if st.session_state['special_owner'] == st.session_state['current_player']:
-            st.session_state['moves_left'] = bonus_turn + 1
+            st.session_state['moves_left'] = bonus_turn
         else:
             st.session_state['moves_left'] = 1
 
+    @st.experimental_dialog("🏴 Match Settings 🏴")
+    def input_country_names():
+        global default_names, num_players, x, y
+        sac_divider("Country Names", "flag", "start", 'horizontal', False, True)
+        
+        num_players = st.number_input("**Number of Players:**", min_value=2, max_value=4, value=2)
+        default_names = [st.text_input(f"**Country #{i}, Enter a name:**", placeholder=f"D{i}") for i in range(1, num_players + 1)]
+
+        sac_divider("Map Customization", "map-fill", "start", 'horizontal', False, True)
+        sidebar_cols = st.columns((3, 1, 3), vertical_alignment='center')
+        x = sidebar_cols[0].number_input("X:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-x")
+        sidebar_cols[1].write("-X-")
+        y = sidebar_cols[2].number_input("Y:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-y")
+        water_per_inp = st.slider("**Water Province Percentage:**", min_value=0, max_value=max_water_province_percentage, value=int(max_water_province_percentage / 2), step=1)
+
+        if st.button("🚩 Start Game 🚩", use_container_width=True):
+            invalid_names = ["🟫", "🔰", "⭐️"]
+            if any(name.replace(" ", "") in invalid_names for name in default_names):
+                st.warning(icon=":material/error:", body="Don't use :red[']```🟢```:red['] or :red[']```🔰```:red['] in your country names!")
+            else:
+                if any(name == "" for name in default_names):
+                    st.toast(icon="🔻", body="Please enter names for all countries!")
+                else:
+                    reset(x, y, num_players, default_names, water_per_inp)
+                    st.session_state['phase'] = 'capital_selection'
+                    st.rerun()
+
+    # Check if country names are set
     if st.session_state['phase'] == 'name_selection':
-        st.title("Enter Player Names")
-        for i in range(1, num_players + 1):
-            st.text_input(f"Player {i} Name", key=f"player_{i}_name")
+        input_country_names()
 
-        if st.button("Start Game"):
-            for i in range(1, num_players + 1):
-                st.session_state['country_names'][i] = st.session_state.get(f'player_{i}_name', default_names[i - 1])
-            st.session_state['phase'] = 'capital_selection'
+    st.header("🚩 Pixel Territories 🚩", divider="violet")
 
-    elif st.session_state['phase'] in ['capital_selection', 'gameplay']:
-        st.title(f"Player {st.session_state['current_player']}'s Turn")
+    if st.session_state['phase'] == 'capital_selection':
+        st.toast(icon=":material/things_to_do:", body=f"**:orange[Player {st.session_state['current_player']}] :red[(]```{st.session_state['country_names'][st.session_state['current_player']]}```:red[)], select your capital:red[.]**")
 
-        display_map()
+    elif st.session_state['phase'] == 'gameplay':
+        st.info(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
+        st.toast(icon=":material/cycle:", body=f"**:rainbow[Current Player]:red[:] Player#{st.session_state['current_player']} :red[(]{st.session_state['country_names'][st.session_state['current_player']]}:red[)]**")
+        st.info(icon=f":material/counter_{st.session_state['moves_left']}:", body=f"**:orange[Moves Left]:red[:] {st.session_state['moves_left']}**")
 
-        if st.session_state['phase'] == 'gameplay':
-            st.write(f"Moves left: {st.session_state['moves_left']}")
+        # Display each player's army 
+        for player, army in st.session_state['armies'].items():
+            st.write(f"**:rainbow[Player {player}'s Army]**")
+            for unit in army:
+                st.write(f"- {unit['name']} (Attack: {unit['attack']}, Defense: {unit['defense']}, Rarity: {unit['rarity']})")
 
-    elif st.session_state['phase'].startswith('player_'):
+    elif 'wins' in st.session_state['phase']:
         winner = st.session_state['phase'].split('_')[1]
-        st.title(f"Player {winner} Wins!")
-        if st.button("Play Again"):
+
+        st.toast(icon=":material/celebration:", body=f"**:rainbow-background[:blue[Player {winner}] :red[(]```{st.session_state['country_names'][int(winner)]}```:red[)] wins!]**")
+        st.success(icon=":material/celebration:", body=f"**:rainbow-background[:blue[Player {winner}] :red[(]```{st.session_state['country_names'][int(winner)]}```:red[)] wins!]**")
+        rain_emoji("🍾", 45, 5, '3s')
+
+    with st.sidebar:
+        if st.button("**:orange[Another Match!]**", use_container_width=True):
             reset(x, y, num_players, default_names)
+            input_country_names()
+
+    with st.sidebar.expander("**Help:**", expanded=True):
+        for player, name in st.session_state['country_names'].items():
+            color = nation_colors[player]
+            st.write(f"**Color :{color}[{color.title()}] → Player #{player} :red[(]```{name}```:red[)]**")
+
+        st.divider()
+
+        st.write("```🔰``` → Capital")
+        st.write(f"```⭐``` → Special Province (capture to gain ```{bonus_turn}``` moves per turn)")
+
+        st.divider()
+
+        st.write("🎯 **Objective/Winner** 🎯 → Whoever Captures All Of The Capitals.")
+
+        st.divider()
+
+        st.write("**:blue[Basic Rules]:red[:]**")
+        st.write("- You will still get a turn while you have at least ```1``` province (Even with the capital fallen).")
+        st.write("- The fallen Player(s) will get a turn. But as the roles suggest, that turn will be skipped by simply picking a random pixel.")
+
+    st.divider()
+
+    # Display the map
+    display_map()
 
 try:
+    #initial_run(lambda: app())
     app()
 except Exception as e:
-    st.write(e)
+    #pass
+    st.write(f"Error: {e}")
