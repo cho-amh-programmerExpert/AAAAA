@@ -113,9 +113,6 @@ def app():
 
             opponent_players = [i for i in opponent_players if i not in st.session_state['removed_players']]
             if (st.session_state['map'][row, col] == 0 or st.session_state['map'][row, col] in opponent_players) and is_adjacent_to_player(row, col, current_player):
-                st.session_state['map'][row, col] = current_player
-                st.session_state['player_territories'][current_player].append((row, col))
-                
                 if st.session_state['map'][row, col] in opponent_players:
                     opponent = st.session_state['map'][row, col]
                     result = fight(current_player, opponent)
@@ -127,6 +124,10 @@ def app():
                             if all(capital is None for capital in st.session_state['capitals'].values() if capital != st.session_state['capitals'][current_player]):
                                 st.session_state['phase'] = f'player_{current_player}_wins'
                                 return
+                else:
+                    st.session_state['player_territories'][current_player].append((row, col))
+                
+                st.session_state['map'][row, col] = current_player
 
                 if (row, col) == st.session_state['special_province']:
                     st.session_state['special_owner'] = current_player
