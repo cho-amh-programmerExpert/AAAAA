@@ -24,7 +24,7 @@ nation_colors = {
     4: "grey"
 }
 
-x, y = 2, 2
+x, y = 10, 10  # Default grid size
 num_players = 2
 default_names = ["D1", "D2"]
 water_province_percentage = 20
@@ -159,25 +159,18 @@ def app():
         defender_army = st.session_state['armies'][defender]
         attacker_strength = sum(unit['attack'] for unit in attacker_army)
         defender_strength = sum(unit['defense'] for unit in defender_army)
-    
-        # Simulate casualties based on a simplistic approach (modify as per game rules)
+
+        # Simulate casualties
         if attacker_strength > defender_strength:
-            # Attacker wins, adjust attacker's army (reduce strength or remove units)
-            # Adjust defender's army (reduce strength or remove units)
-            for unit in attacker_army:
-                unit['attack'] -= random.randint(1, 3)  # Example: reduce attack strength randomly
+            # Attacker wins, reduce defender's army strength
             for unit in defender_army:
-                unit['defense'] -= random.randint(1, 2)  # Example: reduce defense strength randomly
+                unit['defense'] -= random.randint(1, 3)  # Example: reduce defense randomly
             return True
         else:
-            # Defender wins, adjust attacker's army (reduce strength or remove units)
-            # Adjust defender's army (reduce strength or remove units)
+            # Defender wins, reduce attacker's army strength
             for unit in attacker_army:
-                unit['attack'] -= random.randint(1, 2)  # Example: reduce attack strength randomly
-            for unit in defender_army:
-                unit['defense'] -= random.randint(1, 3)  # Example: reduce defense strength randomly
+                unit['attack'] -= random.randint(1, 3)  # Example: reduce attack randomly
             return False
-
 
     def is_adjacent_to_player(row, col, player):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -209,7 +202,7 @@ def app():
         x = sidebar_cols[0].number_input("X:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-x")
         sidebar_cols[1].write("-X-")
         y = sidebar_cols[2].number_input("Y:", min_value=2, max_value=max_grid_size, value=5, key="mapsize-y")
-        water_per_inp = st.slider("**Water Province Percentage:**", min_value=0, max_value=max_water_province_percentage, value=int(str(float(max_water_province_percentage/2)).split(".")[0]), step=1)
+        water_per_inp = st.slider("**Water Province Percentage:**", min_value=0, max_value=max_water_province_percentage, value=int(max_water_province_percentage / 2), step=1)
 
         if st.button("🚩 Start Game 🚩", use_container_width=True):
             invalid_names = ["🟫", "🔰", "⭐️"]
@@ -281,7 +274,7 @@ def app():
     display_map()
 
 try:
-    # initial_run(lambda: app())
+    #initial_run(lambda: app())
     app()
-except:
-    pass
+except Exception as e:
+    st.write(f"Error: {e}")
