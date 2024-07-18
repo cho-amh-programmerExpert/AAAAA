@@ -17,9 +17,11 @@ if "map" not in st.session_state:
     st.session_state.resources = [100, 100]
     st.session_state.units = [{}, {}]
     st.session_state.armies = [None, None]
+    st.session_state.selected_army = None
 
 def end_turn():
     st.session_state.turn = 1 - st.session_state.turn
+    st.session_state.selected_army = None
 
 def recruit_units(unit_type, quantity):
     turn = st.session_state.turn
@@ -35,11 +37,37 @@ def handle_click(row, col):
     if st.session_state.capitals[turn] is None:
         st.session_state.capitals[turn] = (row, col)
         st.session_state.map[row, col] = turn + 1
-    elif st.session_state.armies[turn] is None:
-        st.session_state.armies[turn] = (row, col)
+    elif st.session_state.selected_army is None and st.session_state.map[row, col] == turn + 1:
+        st.session_state.selected_army = (row, col)
+    elif st.session_state.selected_army is not None:
+        selected_row, selected_col = st.session_state.selected_army
+        if is_adjacent(selected_row, selected_col, row, col):
+            if st.session_state.map[row, col] == 0:
+                # Move to unoccupied territory
+                st.session_state.map[row, col] = turn + 1
+                st.session_state.selected_army = (row, col)
+            elif st.session_state.map[row, col] != turn + 1:
+                # Attack enemy territory
+                attack(row, col)
+                st.session_state.selected_army = (row, col)
+
+def is_adjacent(row1, col1, row2, col2):
+    return abs(row1 - row2) + abs(col1 - col2) == 1
+
+def attack(target_row, target_col):
+    turn = st.session_state.turn
+    enemy = 1 - turn
+    attacking_units = st.session_state.units[turn]
+    defending_units = st.session_state.units[enemy]
+    
+    attack_strength = sum(attacking_units[unit]["attack"] * count for unit, count in attacking_units.items())
+    defense_strength = sum(defending_units[unit]["defense"] * count for unit, count in defending_units.items())
+    
+    if attack_strength > defense_strength:
+        st.session_state.map[target_row, target_col] = turn + 1
+        st.session_state.units[enemy] = {}
     else:
-        # Add logic for attacking/moving here
-        pass
+        st.session_state.units[turn] = {}
 
 # Display map
 st.write(f"Player {st.session_state.turn + 1}'s turn")
@@ -47,7 +75,7 @@ for row in range(map_height):
     cols = st.columns(map_width)
     for col in range(map_width):
         if st.session_state.map[row, col] == 0:
-            button_label = f"{row},{col}"
+            button_label = "🟫"
         else:
             button_label = f"P{st.session_state.map[row, col]}"
         cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
@@ -55,8 +83,8 @@ for row in range(map_height):
 # Recruitment UI
 with st.popover("Recruit Units"):
     for unit_type in units.keys():
-        quantity = st.slider(f"Number of {unit_type}", 0, max_recruits_per_turn)
-        if st.button(f"Recruit {unit_type}"):
+        quantity = st.slider(f"Number of {unit_type}", 0, max_recruits_per_turn, key=f"recruit_{unit_type}")
+        if st.button(f"Recruit {unit_type}", key=f"button_{unit_type}"):
             recruit_units(unit_type, quantity)
 
 # End turn button
