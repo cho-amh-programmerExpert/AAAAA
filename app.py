@@ -267,6 +267,7 @@ def app():
 
     # Display the map
     display_map()
+    st.write(st.session_state.armies)
 
 try:
     #initial_run(lambda: app())
