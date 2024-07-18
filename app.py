@@ -159,7 +159,25 @@ def app():
         defender_army = st.session_state['armies'][defender]
         attacker_strength = sum(unit['attack'] for unit in attacker_army)
         defender_strength = sum(unit['defense'] for unit in defender_army)
-        return attacker_strength > defender_strength
+    
+        # Simulate casualties based on a simplistic approach (modify as per game rules)
+        if attacker_strength > defender_strength:
+            # Attacker wins, adjust attacker's army (reduce strength or remove units)
+            # Adjust defender's army (reduce strength or remove units)
+            for unit in attacker_army:
+                unit['attack'] -= random.randint(1, 3)  # Example: reduce attack strength randomly
+            for unit in defender_army:
+                unit['defense'] -= random.randint(1, 2)  # Example: reduce defense strength randomly
+            return True
+        else:
+            # Defender wins, adjust attacker's army (reduce strength or remove units)
+            # Adjust defender's army (reduce strength or remove units)
+            for unit in attacker_army:
+                unit['attack'] -= random.randint(1, 2)  # Example: reduce attack strength randomly
+            for unit in defender_army:
+                unit['defense'] -= random.randint(1, 3)  # Example: reduce defense strength randomly
+            return False
+
 
     def is_adjacent_to_player(row, col, player):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
