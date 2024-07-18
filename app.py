@@ -45,6 +45,7 @@ def handle_click(row, col):
             if st.session_state.map[row, col] == 0:
                 # Move to unoccupied territory
                 st.session_state.map[row, col] = turn + 1
+                st.session_state.armies[turn] = st.session_state.armies[turn]
                 st.session_state.selected_army = (row, col)
             elif st.session_state.map[row, col] != turn + 1:
                 # Attack enemy territory
@@ -60,14 +61,16 @@ def attack(target_row, target_col):
     attacking_units = st.session_state.units[turn]
     defending_units = st.session_state.units[enemy]
     
-    attack_strength = sum(attacking_units[unit]["attack"] * count for unit, count in attacking_units.items())
-    defense_strength = sum(defending_units[unit]["defense"] * count for unit, count in defending_units.items())
+    attack_strength = sum(units[unit]["attack"] * count for unit, count in attacking_units.items())
+    defense_strength = sum(units[unit]["defense"] * count for unit, count in defending_units.items())
     
     if attack_strength > defense_strength:
         st.session_state.map[target_row, target_col] = turn + 1
         st.session_state.units[enemy] = {}
+        st.session_state.armies[turn] = (target_row, target_col)
     else:
         st.session_state.units[turn] = {}
+        st.session_state.armies[turn] = None
 
 # Display map
 st.write(f"Player {st.session_state.turn + 1}'s turn")
@@ -75,7 +78,7 @@ for row in range(map_height):
     cols = st.columns(map_width)
     for col in range(map_width):
         if st.session_state.map[row, col] == 0:
-            button_label = "🟫"
+            button_label = f"{row},{col}"
         else:
             button_label = f"P{st.session_state.map[row, col]}"
         cols[col].button(button_label, key=f"{row}-{col}", on_click=handle_click, args=(row, col))
