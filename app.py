@@ -277,4 +277,5 @@ try:
     #initial_run(lambda: app())
     app()
 except Exception as e:
-    st.write(f"Error: {e}")
+    pass
+    #st.write(f"Error: {e}")
