@@ -1,2 +1,1 @@
-streamlit_antd_components
-streamlit_extras
+streamlit-shadcn-ui
